@@ -1,0 +1,37 @@
+# AWS 설정
+aws_profile = "ddobak"
+aws_region  = "ap-northeast-2"
+
+# 환경 설정
+environment = "dev"
+
+# 프로젝트 설정
+project_name = "ddobak"
+
+# ECR 설정
+ecr_repository_name = "ddobak/ocr"
+
+# Lambda 설정
+lambda_function_name = "ddobak-ocr-function"
+lambda_memory_size   = 1024
+lambda_timeout       = 30
+
+# CORS 설정 (Lambda Function URL)
+lambda_cors_allow_origins = ["*"]
+
+# 추가 Lambda 함수들 (새로운 함수 추가시 아래 주석 해제하고 수정)
+additional_lambdas = {
+  # text_analysis = {
+  #   ecr_repository_name = "ddobak/text-analysis"
+  #   function_name      = "ddobak-text-analysis-function"
+  #   memory_size        = 512
+  #   timeout            = 60
+  # }
+  # 
+  # image_processor = {
+  #   ecr_repository_name = "ddobak/image-processor"
+  #   function_name      = "ddobak-image-processor-function"
+  #   memory_size        = 2048
+  #   timeout            = 120
+  # }
+} 

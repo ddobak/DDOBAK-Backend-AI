@@ -1,0 +1,24 @@
+lambdas:
+  ocr_lambda:
+    name: ocr_lambda
+    function_name: ocr_lambda
+    ecr_repository: ocr_lambda
+    memory_size: 1024
+    timeout: 30
+    environment_variables:
+      LOG_LEVEL: INFO
+    cors_origins:
+      - "*"
+    description: "OCR Lambda function for text extraction"
+  
+  test_lambda:
+    name: test_lambda
+    function_name: test_lambda
+    ecr_repository: test_lambda
+    memory_size: 512
+    timeout: 60
+    environment_variables:
+      LOG_LEVEL: INFO
+    cors_origins:
+      - "*"
+    description: "Test Lambda function for development" 
