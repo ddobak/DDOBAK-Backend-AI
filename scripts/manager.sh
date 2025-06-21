@@ -41,7 +41,7 @@ AWS_REGION="ap-northeast-2"
 
 # 필수 도구 확인
 check_requirements() {
-    local tools=("aws" "docker" "terraform" "poetry")
+    local tools=("aws" "docker" "terraform" "uv")
     local missing_tools=()
     
     for tool in "${tools[@]}"; do
@@ -165,10 +165,12 @@ print(config['lambdas']['$lambda_name']['ecr_repository'])
     local ecr_uri="${account_id}.dkr.ecr.${region}.amazonaws.com"
     local image_tag="${ecr_uri}/${ecr_repository}:latest"
     
-    # Poetry에서 requirements.txt 생성
+    # uv에서 requirements.txt 생성
     log_info "requirements.txt 파일 생성 중..."
     cd "$PROJECT_ROOT"
-    poetry export --format=requirements.txt --output=requirements.txt --without-hashes
+    uv export -o requirements.txt --no-hashes --no-editable
+    # '.' 항목 제거 (editable install 방지)
+    sed -i '' '/^\.$/d' requirements.txt
     
     # 빌드 성공/실패 여부에 관계없이 requirements.txt 정리하도록 trap 설정
     trap 'rm -f "$PROJECT_ROOT/requirements.txt"' EXIT
@@ -235,10 +237,10 @@ init_project() {
     # 의존성 확인
     check_requirements
     
-    # Poetry 설치
-    log_info "Poetry 의존성 설치 중..."
+    # uv 의존성 설치
+    log_info "uv 의존성 설치 중..."
     cd "$PROJECT_ROOT"
-    poetry install
+    uv sync
     
     # Terraform 초기화
     log_info "Terraform 초기화 중..."
