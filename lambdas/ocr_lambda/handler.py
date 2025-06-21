@@ -1,67 +1,45 @@
-"""
-OCR Lambda Handler
-Simple sample lambda function for testing
-"""
+import boto3
+import requests
+import os
+import io
 
-import json
-import asyncio
-from typing import Dict, Any
+print("Loading function")
 
-
-async def async_process() -> Dict[str, Any]:
-    """
-    비동기 처리 함수 - 기존과 동일한 샘플 응답
-    
-    Returns:
-        샘플 응답 데이터
-    """
-    # 비동기 처리 시뮬레이션
-    await asyncio.sleep(0.1)
-    
-    return {
-        'status': 'success',
-        'data': {
-            'content': 'this is sample response async'
-        }
-    }
+s3 = boto3.client("s3")
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """
-    Lambda 핸들러 함수 - 비동기 처리가 가능한 샘플 응답 반환
-    
-    Args:
-        event: Lambda 이벤트 데이터
-        context: Lambda 컨텍스트 객체
-        
-    Returns:
-        샘플 응답
-    """
-    # 비동기 함수 실행
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
+def lambda_handler(event, context):
+    bucket = event["Records"][0]["s3"]["bucket"]["name"]
+    key = event["Records"][0]["s3"]["object"]["key"]
+
     try:
-        result = loop.run_until_complete(async_process())
-        
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps(result, ensure_ascii=False)
-        }
-    finally:
-        loop.close()
+        # Download the image from S3
+        response = s3.get_object(Bucket=bucket, Key=key)
+        image_content = response["Body"].read()
 
+        # Create file-like object from bytes
+        image_file = io.BytesIO(image_content)
+        filename = key.split("/")[-1]
 
-if __name__ == "__main__":
-    """
-    로컬 테스트용 구간
-    
-    사용법:
-        poetry run python lambdas/ocr_lambda/handler.py
+        # Determine content type from file extension
+        file_ext = filename.lower().split(".")[-1]
+        if file_ext in ["jpeg", "png"]:
+            content_type = f"image/{file_ext}"
+        else:
+            return {"error": f"Unsupported file type: {file_ext}. Only jpg/jpeg files are supported."}
 
-    테스트할 로직, 함수 등을 넣어서 테스트
-    """
+        # Process with Upstage OCR
+        api_key = os.environ["UPSTAGE_API_KEY"]
+        url = "https://api.upstage.ai/v1/document-digitization"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        files = {"document": (filename, image_file, content_type)}
+        data = {"ocr": "force", "base64_encoding": "['table']", "model": "document-parse"}
+
+        response = requests.post(url, headers=headers, files=files, data=data)
+        result = response.json()
+
+        return {"message": "success", "result": result}
+
+    except Exception as e:
+        print(e)
+        return {"error": str(e)}
