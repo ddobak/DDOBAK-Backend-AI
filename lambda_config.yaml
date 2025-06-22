@@ -19,7 +19,6 @@ lambdas:
     timeout: 300
     environment_variables:
       LOG_LEVEL: INFO
-      AWS_DEFAULT_REGION: ap-northeast-2
     cors_origins:
       - "*"
     description: "Bedrock AI Lambda for toxic clause analysis in contracts"
