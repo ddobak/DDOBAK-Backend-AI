@@ -11,6 +11,19 @@ lambdas:
       - "*"
     description: "OCR Lambda function for text extraction"
   
+  bedrock_lambda:
+    name: bedrock_lambda
+    function_name: bedrock_lambda
+    ecr_repository: bedrock_lambda
+    memory_size: 2048
+    timeout: 300
+    environment_variables:
+      LOG_LEVEL: INFO
+      AWS_DEFAULT_REGION: ap-northeast-2
+    cors_origins:
+      - "*"
+    description: "Bedrock AI Lambda for toxic clause analysis in contracts"
+  
   test_lambda:
     name: test_lambda
     function_name: test_lambda
