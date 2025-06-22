@@ -2,21 +2,10 @@ import json
 import boto3
 import os
 
-# Bedrock Runtime client - 서울 지역 사용
 bedrock_runtime = boto3.client(service_name="bedrock-runtime", region_name="ap-northeast-2")
 
 
 def extract_toxic_clauses(contract_text):
-    """
-    계약서 텍스트에서 독소조항을 추출하고 분석하는 함수
-
-    Args:
-        contract_text (str): 계약서 전문 텍스트
-
-    Returns:
-        dict: 독소조항 분석 결과 (모바일 앱 UI 형식)
-    """
-    # Claude 3를 위한 독소조항 추출 프롬프트 (UI 구조에 맞게 수정)
     prompt = f"""
 다음 계약서 내용을 분석하여 독소조항(불공정 조항)을 추출하고 분석해주세요.
 
@@ -65,7 +54,6 @@ def extract_toxic_clauses(contract_text):
 - warnLevel은 해당 조항이 계약자에게 미칠 수 있는 피해 정도를 기준으로 판단
 """
 
-    # Claude 3.5 Sonnet 모델 사용 (고성능 분석)
     model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 
     body = json.dumps(
@@ -73,7 +61,7 @@ def extract_toxic_clauses(contract_text):
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 4000,
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.1,  # 일관성을 위해 낮은 온도 설정
+            "temperature": 0.1,
             "top_p": 0.9,
         }
     )
@@ -82,23 +70,19 @@ def extract_toxic_clauses(contract_text):
         response = bedrock_runtime.invoke_model(body=body, modelId=model_id, accept="application/json", contentType="application/json")
 
         response_body = json.loads(response.get("body").read())
-        ai_response = response_body["content"][0]["text"]
+        answer = response_body["content"][0]["text"]
 
-        # Claude 응답에서 JSON 부분만 추출
         try:
-            # ```json ... ``` 형태에서 JSON 부분만 추출
-            if "```json" in ai_response:
-                json_start = ai_response.find("```json") + 7
-                json_end = ai_response.find("```", json_start)
-                json_str = ai_response[json_start:json_end].strip()
+            if "```json" in answer:
+                json_start = answer.find("```json") + 7
+                json_end = answer.find("```", json_start)
+                json_str = answer[json_start:json_end].strip()
             else:
                 # JSON이 바로 시작하는 경우
-                json_str = ai_response.strip()
+                json_str = answer.strip()
 
-            # JSON 파싱 시도
             parsed_result = json.loads(json_str)
 
-            # originContent 필드가 비어있으면 원본 텍스트로 채우기
             if not parsed_result.get("originContent"):
                 parsed_result["originContent"] = contract_text
 
@@ -109,7 +93,7 @@ def extract_toxic_clauses(contract_text):
             return {
                 "status": "partial_success",
                 "model_used": model_id,
-                "raw_response": ai_response,
+                "raw_response": answer,
                 "parse_error": str(e),
                 "data": {
                     "originContent": contract_text,
@@ -136,41 +120,24 @@ def extract_toxic_clauses(contract_text):
 
 
 def lambda_handler(event, context):
-    """
-    Lambda 핸들러 - S3 이벤트와 API Gateway 양쪽 모두 지원
-
-    Args:
-        event: Lambda 이벤트 (S3 이벤트 또는 API Gateway 이벤트)
-        context: Lambda 컨텍스트
-
-    Returns:
-        dict: 독소조항 분석 결과 (모바일 앱 UI 형식)
-    """
-
     try:
         contract_text = ""
 
-        # API Gateway 이벤트인지 확인 (OCR Lambda 결과 직접 전달)
-        if "body" in event:
-            print("Processing API Gateway event...")
-            if isinstance(event["body"], str):
-                body = json.loads(event["body"])
-            else:
-                body = event["body"]
-
-            contract_text = body.get("contract_text", "")
-
-        # 직접 함수 호출 (테스트용)
-        elif "contract_text" in event:
-            print("Processing direct function call...")
-            contract_text = event["contract_text"]
-
-        else:
+        # API Gateway 이벤트 처리
+        if "body" not in event:
             return {
                 "statusCode": 400,
                 "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-                "body": json.dumps({"error": "Invalid event format. Expected API Gateway event or direct contract_text."}, ensure_ascii=False),
+                "body": json.dumps({"error": "Invalid event format. Expected API Gateway event."}, ensure_ascii=False),
             }
+
+        print("Processing API Gateway event...")
+        if isinstance(event["body"], str):
+            body = json.loads(event["body"])
+        else:
+            body = event["body"]
+
+        contract_text = body.get("contract_text", "")
 
         if not contract_text.strip():
             return {"statusCode": 400, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": json.dumps({"error": "Contract text is empty."}, ensure_ascii=False)}
