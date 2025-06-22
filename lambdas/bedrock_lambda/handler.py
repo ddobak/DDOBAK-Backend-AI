@@ -121,25 +121,27 @@ def extract_toxic_clauses(contract_text):
 
 def lambda_handler(event, context):
     try:
-        contract_text = ""
+        # contract_text = ""
 
-        # API Gateway 이벤트 처리
-        if "body" not in event:
-            return {
-                "statusCode": 400,
-                "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-                "body": json.dumps({"error": "Invalid event format. Expected API Gateway event."}, ensure_ascii=False),
-            }
+        # # API Gateway 이벤트 처리
+        # if "body" not in event:
+        #     return {
+        #         "statusCode": 400,
+        #         "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+        #         "body": json.dumps({"error": "Invalid event format. Expected API Gateway event."}, ensure_ascii=False),
+        #     }
 
-        print("Processing API Gateway event...")
-        if isinstance(event["body"], str):
-            body = json.loads(event["body"])
-        else:
-            body = event["body"]
+        # print("Processing API Gateway event...")
+        # if isinstance(event["body"], str):
+        #     body = json.loads(event["body"])
+        # else:
+        #     body = event["body"]
 
-        contract_text = body.get("contract_text", "")
+        # contract_text = body.get("contract_text", "")
+        ocr_results = event
+        contract_text = ocr_results
 
-        if not contract_text.strip():
+        if not contract_text:
             return {"statusCode": 400, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": json.dumps({"error": "Contract text is empty."}, ensure_ascii=False)}
 
         # 독소조항 추출 수행

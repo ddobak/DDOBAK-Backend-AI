@@ -2,15 +2,19 @@ import boto3
 import requests
 import os
 import io
+from dotenv import load_dotenv
 
 print("Loading function")
 
-s3 = boto3.client("s3")
+# 현재 디렉터리의 .env 파일 로드
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
+
+s3 = boto3.client("s3", region_name="ap-northeast-2")
 
 
 def lambda_handler(event, context):
-    bucket = event["Records"][0]["s3"]["bucket"]["name"]
-    key = event["Records"][0]["s3"]["object"]["key"]
+    bucket = "ddobak-test"
+    key = event["s3Key"]
 
     try:
         # Download the image from S3
@@ -23,7 +27,8 @@ def lambda_handler(event, context):
 
         # Determine content type from file extension
         file_ext = filename.lower().split(".")[-1]
-        if file_ext in ["jpeg", "png"]:
+        page_num = filename.lower().split(".")[0]
+        if file_ext in ["jpeg", "png", "jpg"]:
             content_type = f"image/{file_ext}"
         else:
             return {"error": f"Unsupported file type: {file_ext}. Only jpg/jpeg files are supported."}
@@ -38,7 +43,11 @@ def lambda_handler(event, context):
         response = requests.post(url, headers=headers, files=files, data=data)
         result = response.json()
 
-        return {"message": "success", "result": result}
+        return {
+            "page": page_num,
+            "text": result['content']['html'],
+            "s3Key": key
+        }
 
     except Exception as e:
         print(e)
