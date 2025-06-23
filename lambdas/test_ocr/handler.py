@@ -1,6 +1,11 @@
 import json
 import boto3
 import re
+import os
+from dotenv import load_dotenv
+
+# 코드랑 같은 디렉터리에 .env
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
 s3 = boto3.client("s3")
 
@@ -8,21 +13,30 @@ def extract_page_number(s3_key):
     match = re.search(r"/(\d+)\.jpg$", s3_key)
     return match.group(1) if match else "unknown"
 
-def lambda_handler(event, context):
-    contract_id = event["contractId"]
-    s3_key = event["s3Key"]
-
-    bucket_name = "your-bucket-name"
+def lambda_handler(event, context=None):
+    bucket = os.environ["S3_BUCKET"]
+    key = event["s3Key"]
     
-    # 실제 OCR을 수행할 부분 (여기선 단순 mock)
-    # s3_object = s3.get_object(Bucket=bucket_name, Key=s3_key)
-    # image_bytes = s3_object["Body"].read()
+    page_num = event["pageIdx"]
     
-    # TODO: Replace with actual OCR (Textract, external API, etc.)
-    ocr_text = f"OCR result of {s3_key}"
-
+    # Mock 데이터 반환
     return {
-        "page": 1,
-        "text": ocr_text,
-        "s3Key": s3_key
+        "success": True,
+        "message": "",
+        "data": {
+            "page_idx": page_num,
+            "html_entire": "<html><body><h1>전체 HTML Mock 데이터</h1><table><tr><td>테스트 데이터</td></tr></table></body></html>",
+            "html_array": [
+                {
+                    "category": "table",
+                    "html": "<table><tr><td>테스트 테이블</td></tr></table>",
+                    "id": "table_1"
+                },
+                {
+                    "category": "text",
+                    "html": "<p>테스트 텍스트 블록</p>",
+                    "id": "text_1"
+                }
+            ]
+        }
     }

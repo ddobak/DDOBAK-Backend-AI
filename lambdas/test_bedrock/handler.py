@@ -4,11 +4,12 @@ import boto3
 bedrock = boto3.client("bedrock-runtime")  # 필요한 경우 'runtime'으로 다르게 설정됨
 
 def lambda_handler(event, context):
-    # event는 OCR 결과 배열
-    ocr_results = event  # list of { page, text, s3Key }
-
+    # event에서 contractTexts 추출
+    contract_texts = event["contractTexts"]  # list of strings
+    
+    # 모든 페이지의 텍스트를 합침
     full_text = "\n---\n".join(
-        f"Page {item['page']}:\n{item['text']}" for item in ocr_results
+        f"Page {idx + 1}:\n{text}" for idx, text in enumerate(contract_texts)
     )
     
     # 예시: Anthropic Claude 호출
@@ -25,24 +26,25 @@ def lambda_handler(event, context):
 
     # 샘플 결과 데이터 구성
     output = {
-        "originContent": "본 계약은 을과 병이...",
-        "summary": "본 계약은 근무계약이며, 계약 기간은 1년이다.",
-        "ddobakCommentary": {
-            "overallComment": "또박이 한마디",
-            "warningComment": "주의 사항 요약",
-            "advice": "뜩박이의 조언"
-        },
-        "toxics": [
-            {
-                "title": "근무 장소 및 직무 변경 조항",
-                "clause": "을은 사전 통보 없이 계약을 해지할 수 있다.",
-                "reason": "사용자에게 일방적인 해지 권한이 있음",
-                "reasonReference": "위의 몇조 몇항에 따라 위가 어떻게...",
-                "warnLevel": 3
-            }
-        ]
+        "success": True,
+        "message": "",
+        "data": {
+            "summary": "본 계약은 근무계약이며, 계약 기간은 1년이다.",
+            "ddobakCommentary": {
+                "overallComment": "또박이 한마디",
+                "warningComment": "주의 사항 요약",
+                "advice": "또박이의 조언"
+            },
+            "toxics": [
+                {
+                    "title": "근무 장소 및 직무 변경 조항",
+                    "clause": "을은 사전 통보 없이 계약을 해지할 수 있다.",
+                    "reason": "사용자에게 일방적인 해지 권한이 있음",
+                    "reasonReference": "위의 몇조 몇항에 따라 위가 어떻게...",
+                    "warnLevel": 3
+                }
+            ]
+        }
     }
-    
-    summary_text = output["summary"]
 
     return output
