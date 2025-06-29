@@ -6,53 +6,15 @@ bedrock_runtime = boto3.client(service_name="bedrock-runtime", region_name="ap-n
 
 
 def extract_toxic_clauses(contract_text):
-    prompt = f"""
-다음 계약서 내용을 분석하여 독소조항(불공정 조항)을 추출하고 분석해주세요.
-
-<contract>
-{contract_text}
-</contract>
-
-다음 기준으로 분석하여 JSON 형식으로 응답해주세요:
-
-1. **독소조항 식별**: 
-   - 일방적으로 불리한 조항
-   - 과도한 책임 부담 조항
-   - 부당한 손해배상 조항
-   - 계약 해지 관련 불공정 조항
-   - 개인정보 과도 수집/활용 조항
-
-2. **위험도 평가**: 각 조항을 HIGH/MEDIUM/LOW로 분류
-
-3. **응답 형식**: 반드시 다음 JSON 구조로 응답하세요.
-
-```json
-{{
-  "summary": "계약서의 주요 내용과 발견된 독소조항에 대한 간략한 요약 (2-3문장)",
-  "ddobakCommentary": {{
-    "overallComment": "전체적인 계약서 평가 (한 문장으로)",
-    "warningComment": "가장 주의해야 할 사항들 요약 (2-3문장)",
-    "advice": "계약자를 위한 구체적인 조언 (2-3문장)"
-  }},
-  "toxicCount": 발견된_독소조항_개수,
-  "toxics": [
-    {{
-      "title": "독소조항의 핵심 내용을 한 줄로 표현한 제목",
-      "clause": "해당 독소조항의 원문",
-      "reason": "왜 이 조항이 문제가 되는지 구체적인 이유",
-      "warnLevel": "HIGH|MEDIUM|LOW"
-    }}
-  ]
-}}
-```
-
-주의사항:
-- originContent에는 입력받은 계약서 전문을 그대로 포함
-- summary는 일반인이 이해하기 쉽게 작성
-- 각 독소조항의 title은 사용자가 한눈에 파악할 수 있도록 간결하게
-- reason은 법적 근거나 실제 피해 사례를 포함하여 구체적으로 작성
-- warnLevel은 해당 조항이 계약자에게 미칠 수 있는 피해 정도를 기준으로 판단
-"""
+    # prompt.txt 파일 읽기
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    prompt_file_path = os.path.join(current_dir, "prompt.txt")
+    
+    with open(prompt_file_path, 'r', encoding='utf-8') as f:
+        prompt_template = f.read()
+    
+    # contract_text를 템플릿에 삽입
+    prompt = prompt_template.replace("{{contract_document}}", contract_text)
 
     model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 
