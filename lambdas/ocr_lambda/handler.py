@@ -2,15 +2,17 @@ import boto3
 import requests
 import os
 import io
+from dotenv import load_dotenv
 
-print("Loading function")
+# 코드랑 같은 디렉터리에 .env
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
 s3 = boto3.client("s3")
 
-
 def lambda_handler(event, context):
-    bucket = event["Records"][0]["s3"]["bucket"]["name"]
-    key = event["Records"][0]["s3"]["object"]["key"]
+    bucket = os.environ["S3_BUCKET"]
+    key = event["s3Key"]
+    page_num = event["pageIdx"]
 
     try:
         # Download the image from S3
@@ -38,8 +40,32 @@ def lambda_handler(event, context):
         response = requests.post(url, headers=headers, files=files, data=data)
         result = response.json()
 
-        return {"message": "success", "result": result}
+
+        html_entire = result["content"]["html"]
+        html_array = [
+            {
+                "category": e["category"],
+                "html": e["content"]["html"],
+                "id": e["id"]
+            } for e in result["elements"]
+        ]
+        if result:
+            data = {
+                "page_idx": page_num,
+                "html_entire": html_entire,
+                "html_array": html_array
+            }
+
+        return {
+            "success": True,
+            "message": "",
+            "data": data
+        }
 
     except Exception as e:
         print(e)
-        return {"error": str(e)}
+        return {
+            "success": False,
+            "message": str(e),
+            "data": {}
+        }

@@ -121,32 +121,25 @@ def extract_toxic_clauses(contract_text):
 
 def lambda_handler(event, context):
     try:
-        contract_text = ""
+        contract_text = event["contractTexts"]
 
-        # API Gateway 이벤트 처리
-        if "body" not in event:
-            return {
-                "statusCode": 400,
-                "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-                "body": json.dumps({"error": "Invalid event format. Expected API Gateway event."}, ensure_ascii=False),
-            }
-
-        print("Processing API Gateway event...")
-        if isinstance(event["body"], str):
-            body = json.loads(event["body"])
-        else:
-            body = event["body"]
-
-        contract_text = body.get("contract_text", "")
-
-        if not contract_text.strip():
-            return {"statusCode": 400, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": json.dumps({"error": "Contract text is empty."}, ensure_ascii=False)}
+        full_text = "\n---\n".join(
+            f"Page {idx + 1}:\n{text}" for idx, text in enumerate(contract_text)
+        )
 
         # 독소조항 추출 수행
-        result = extract_toxic_clauses(contract_text)
+        result = extract_toxic_clauses(full_text)
 
-        return {"statusCode": 200, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": json.dumps(result, ensure_ascii=False)}
+        return {
+            "success": True,
+            "message": "",
+            "data": result
+        }
 
     except Exception as e:
         print(f"Error processing contract: {str(e)}")
-        return {"statusCode": 500, "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}, "body": json.dumps({"error": "Internal server error", "details": str(e)}, ensure_ascii=False)}
+        return {
+            "success": False,
+            "message": str(e),
+            "data": {}
+        }
