@@ -1,6 +1,7 @@
 import json
 import boto3
 import os
+from json_repair import repair_json
 
 bedrock_runtime = boto3.client(service_name="bedrock-runtime", region_name="ap-northeast-2")
 
@@ -35,6 +36,7 @@ def extract_toxic_clauses(contract_text):
         answer = response_body["content"][0]["text"]
 
         try:
+            # JSON 블록에서 JSON 추출
             if "```json" in answer:
                 json_start = answer.find("```json") + 7
                 json_end = answer.find("```", json_start)
@@ -43,14 +45,16 @@ def extract_toxic_clauses(contract_text):
                 # JSON이 바로 시작하는 경우
                 json_str = answer.strip()
 
-            parsed_result = json.loads(json_str)
+            # json-repair를 사용하여 JSON 복구 및 파싱
+            repaired_json = repair_json(json_str)
+            parsed_result = json.loads(repaired_json)
 
             if not parsed_result.get("originContent"):
                 parsed_result["originContent"] = contract_text
 
             return {"status": "success", "model_used": model_id, "data": parsed_result}
 
-        except (json.JSONDecodeError, KeyError) as e:
+        except Exception as e:
             # JSON 파싱 실패 시 원본 응답 반환
             return {
                 "status": "partial_success",
@@ -92,16 +96,27 @@ def lambda_handler(event, context):
         # 독소조항 추출 수행
         result = extract_toxic_clauses(full_text)
 
-        return {
+        response = {
             "success": True,
             "message": "",
-            "data": result
+            "data": result['data']
         }
+        
+        # 최종 반환값 로그 출력
+        print(f"Lambda response: {json.dumps(response, ensure_ascii=False, indent=2)}")
+        
+        return response
 
     except Exception as e:
         print(f"Error processing contract: {str(e)}")
-        return {
+        
+        error_response = {
             "success": False,
             "message": str(e),
-            "data": {}
+            "data": {result}
         }
+        
+        # 에러 응답도 로그 출력
+        print(f"Lambda error response: {json.dumps(error_response, ensure_ascii=False, indent=2)}")
+        
+        return error_response
