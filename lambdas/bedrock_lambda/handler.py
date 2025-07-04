@@ -6,7 +6,7 @@ from json_repair import repair_json
 bedrock_runtime = boto3.client(service_name="bedrock-runtime", region_name="ap-northeast-2")
 
 
-def extract_toxic_clauses(contract_text):
+def extract_toxic_clauses(contract_id, analysis_id, contract_text):
     # prompt.txt 파일 읽기
     current_dir = os.path.dirname(os.path.abspath(__file__))
     prompt_file_path = os.path.join(current_dir, "prompt.txt")
@@ -52,7 +52,10 @@ def extract_toxic_clauses(contract_text):
             if not parsed_result.get("originContent"):
                 parsed_result["originContent"] = contract_text
 
-            return {"status": "success", "model_used": model_id, "data": parsed_result}
+            return {"status": "success", "model_used": model_id, "data": {
+                "contractId": contract_id,
+                "analysisResult": parsed_result
+            }}
 
         except Exception as e:
             # JSON 파싱 실패 시 원본 응답 반환
@@ -62,6 +65,8 @@ def extract_toxic_clauses(contract_text):
                 "raw_response": answer,
                 "parse_error": str(e),
                 "data": {
+                    "contractId": contract_id,
+                    "analysisId": analysis_id,
                     "originContent": contract_text,
                     "summary": "응답 파싱 중 오류가 발생했습니다.",
                     "ddobakCommentary": {"overallComment": "분석을 완료했으나 구조화된 응답 생성에 실패했습니다.", "warningComment": "원본 응답을 확인해주세요.", "advice": "다시 시도해보시거나 관리자에게 문의하세요."},
@@ -71,13 +76,16 @@ def extract_toxic_clauses(contract_text):
             }
 
     except Exception as e:
+        print(f"Error processing contract: {str(e)}")
         return {
             "status": "error",
             "error": str(e),
             "model_used": model_id,
             "data": {
+                "contractId": contract_id,
+                "analysisId": analysis_id,
                 "originContent": contract_text,
-                "summary": "분석 중 오류가 발생했습니다.",
+                "summary": f"분석 중 오류가 발생했습니다. {str(e)}",
                 "ddobakCommentary": {"overallComment": "시스템 오류로 인해 분석을 완료할 수 없습니다.", "warningComment": "서비스 관리자에게 문의하시기 바랍니다.", "advice": "잠시 후 다시 시도해보세요."},
                 "toxicCount": 0,
                 "toxics": [],
@@ -87,6 +95,8 @@ def extract_toxic_clauses(contract_text):
 
 def lambda_handler(event, context):
     try:
+        contract_id = event["contractId"]
+        analysis_id = event["analysisId"]
         contract_text = event["contractTexts"]
 
         full_text = "\n---\n".join(
@@ -94,12 +104,16 @@ def lambda_handler(event, context):
         )
 
         # 독소조항 추출 수행
-        result = extract_toxic_clauses(full_text)
+        result = extract_toxic_clauses(contract_id, analysis_id, full_text)
 
         response = {
             "success": True,
             "message": "",
-            "data": result['data']
+            "data": {
+                "contractId": contract_id,
+                "analysisId": analysis_id,
+                "analysisResult": result['data']
+            }
         }
         
         # 최종 반환값 로그 출력
@@ -113,7 +127,11 @@ def lambda_handler(event, context):
         error_response = {
             "success": False,
             "message": str(e),
-            "data": {result}
+            "data": {
+                "contractId": contract_id,
+                "analysisId": analysis_id,
+                "analysisResult": result['data']
+            }
         }
         
         # 에러 응답도 로그 출력

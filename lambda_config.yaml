@@ -22,6 +22,18 @@ lambdas:
     cors_origins:
       - "*"
     description: "Bedrock AI Lambda for toxic clause analysis in contracts"
+
+  analysis_result_loader:
+    name: analysis_result_loader
+    function_name: analysis_result_loader
+    ecr_repository: analysis_result_loader
+    memory_size: 1024
+    timeout: 30
+    environment_variables:
+      LOG_LEVEL: INFO
+    cors_origins:
+      - "*"
+    description: "Analysis result loader Lambda function for text extraction"
   
   test_lambda:
     name: test_lambda

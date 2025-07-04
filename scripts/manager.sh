@@ -176,6 +176,8 @@ print(config['lambdas']['$lambda_name']['ecr_repository'])
     trap 'rm -f "$PROJECT_ROOT/requirements.txt"' EXIT
     
     log_info "Docker 이미지 빌드 중: $lambda_name"
+    # Legacy Docker builder 사용 (Lambda 호환성을 위해 단일 플랫폼 이미지 생성)
+    export DOCKER_BUILDKIT=0
     if docker build --platform linux/amd64 -t "$image_tag" -f "$lambda_dir/Dockerfile" "$PROJECT_ROOT"; then
         log_info "Docker 이미지 푸시 중: $ecr_repository"
         docker push "$image_tag"
