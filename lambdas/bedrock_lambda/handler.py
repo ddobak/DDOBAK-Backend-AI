@@ -49,8 +49,12 @@ def extract_toxic_clauses(contract_id, analysis_id, contract_text):
             repaired_json = repair_json(json_str)
             parsed_result = json.loads(repaired_json)
 
+            # 필수 필드 보완
             if not parsed_result.get("originContent"):
                 parsed_result["originContent"] = contract_text
+            
+            if not parsed_result.get("title"):
+                parsed_result["title"] = "계약서"
 
             return {"status": "success", "model_used": model_id, "data": {
                 "contractId": contract_id,
@@ -67,6 +71,7 @@ def extract_toxic_clauses(contract_id, analysis_id, contract_text):
                 "data": {
                     "contractId": contract_id,
                     "analysisId": analysis_id,
+                    "title": "분석 불가능한 계약서",
                     "originContent": contract_text,
                     "summary": "응답 파싱 중 오류가 발생했습니다.",
                     "ddobakCommentary": {"overallComment": "분석을 완료했으나 구조화된 응답 생성에 실패했습니다.", "warningComment": "원본 응답을 확인해주세요.", "advice": "다시 시도해보시거나 관리자에게 문의하세요."},
@@ -84,6 +89,7 @@ def extract_toxic_clauses(contract_id, analysis_id, contract_text):
             "data": {
                 "contractId": contract_id,
                 "analysisId": analysis_id,
+                "title": "분석 오류 계약서",
                 "originContent": contract_text,
                 "summary": f"분석 중 오류가 발생했습니다. {str(e)}",
                 "ddobakCommentary": {"overallComment": "시스템 오류로 인해 분석을 완료할 수 없습니다.", "warningComment": "서비스 관리자에게 문의하시기 바랍니다.", "advice": "잠시 후 다시 시도해보세요."},

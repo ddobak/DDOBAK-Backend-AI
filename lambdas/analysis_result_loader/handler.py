@@ -80,6 +80,37 @@ def update_contract_analysis(connection, analysis_data, contract_id, analysis_id
     finally:
         cursor.close()
 
+def update_contract_title(connection, contract_id, title):
+    """contracts 테이블의 title을 업데이트합니다."""
+    cursor = connection.cursor()
+    
+    current_time = datetime.utcnow()
+    
+    try:
+        # contracts 테이블의 title 업데이트
+        update_query = """
+            UPDATE contracts 
+            SET title = %s, 
+                updated_at = %s
+            WHERE id = %s
+        """
+        
+        cursor.execute(update_query, (title, current_time, contract_id))
+        
+        # 업데이트된 행이 있는지 확인
+        if cursor.rowcount == 0:
+            print(f"Warning: No rows updated for contract_id: {contract_id}")
+        else:
+            print(f"Updated contract title with ID: {contract_id}, title: {title}")
+        
+        return contract_id
+        
+    except Exception as e:
+        print(f"Error updating contract title: {str(e)}")
+        raise e
+    finally:
+        cursor.close()
+
 def insert_toxic_clauses(connection, analysis_id, toxic_clauses):
     """toxic_clauses 테이블에 독소조항들을 삽입합니다."""
     cursor = connection.cursor()
@@ -194,6 +225,10 @@ def lambda_handler(event, context):
                 
                 # 트랜잭션 시작
                 connection.autocommit = False
+                
+                # contracts 테이블의 title 업데이트
+                title = analysis_result.get('data', {}).get('title', '계약서')
+                update_contract_title(connection, contract_id, title)
                 
                 # contract_analyses 테이블 업데이트
                 analysis_id = update_contract_analysis(connection, analysis_result, contract_id, analysis_id)
