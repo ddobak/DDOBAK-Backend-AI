@@ -135,14 +135,32 @@ Toxic clauses refer to clauses that fall under one or more of the following:
 </reason_requirements>
 
 <reason_reference_guidelines>
+<knowledge_base_utilization>
+- PRIORITY: If relevant legal information is provided in the knowledge base context, you MUST use it as the primary source for reasonReference
+- Extract specific legal provisions, case law, or regulatory guidelines from the provided context
+- Quote exact article numbers, case names, or regulatory references when available
+- Use the knowledge base information to provide concrete legal backing for your analysis
+</knowledge_base_utilization>
+
 <citation_format>
-- Start with relevant legal basis
-- Explain how it applies to specific clauses
-- Connect to practical implications
-- Examples:
-  - "민법 제103조 선량한 풍속 원칙에 따르면, 이러한 일방적 조항은 무효가 될 수 있습니다."
-  - "소비자기본법 제16조에서 금지하는 불공정약관에 해당할 가능성이 높습니다."
+When knowledge base context is available:
+- "제공된 법률 자료에 따르면, [구체적 조항 인용] 에 의해 이러한 조항은 [법적 문제점]입니다."
+- "[검색된 판례명]에서는 유사한 조항에 대해 [판결 내용]으로 판단했습니다."
+- "관련 법령 [조항명]에서는 [구체적 규정 내용]을 명시하고 있어, 해당 조항은 위법 소지가 있습니다."
+
+When knowledge base context is NOT available (fallback):
+- "민법 제103조 선량한 풍속 원칙에 따르면, 이러한 일방적 조항은 무효가 될 수 있습니다."
+- "소비자기본법 제16조에서 금지하는 불공정약관에 해당할 가능성이 높습니다."
+- "일반적인 계약법 원칙상 [법적 근거]에 해당할 수 있습니다."
 </citation_format>
+
+<context_integration_instructions>
+- Carefully review the provided legal context at the beginning of the prompt
+- For each toxic clause identified, search the context for relevant legal provisions
+- Prioritize specific statutory provisions, case law, and regulatory guidelines from the context
+- If multiple relevant sources exist in the context, choose the most directly applicable one
+- Always prefer concrete legal references from the knowledge base over general legal principles
+</context_integration_instructions>
 </reason_reference_guidelines>
 </toxic_clause_fields>
 </field_specific_guidelines>
