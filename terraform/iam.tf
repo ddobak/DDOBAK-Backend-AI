@@ -69,4 +69,80 @@ resource "aws_iam_policy" "lambda_s3_access" {
 resource "aws_iam_role_policy_attachment" "lambda_s3_access" {
   role       = aws_iam_role.lambda_execution_role.name
   policy_arn = aws_iam_policy.lambda_s3_access.arn
-} 
+}
+
+# Bedrock 접근 권한 (Claude 모델 호출용)
+resource "aws_iam_policy" "lambda_bedrock_access" {
+  name        = "${var.project_name}-lambda-bedrock-access"
+  description = "Bedrock access policy for Lambda function"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
+        ]
+        Resource = [
+          "arn:aws:bedrock:${data.aws_region.current.name}::foundation-model/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:ListFoundationModels",
+          "bedrock:GetFoundationModel"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+# Bedrock Agent Runtime 접근 권한 (Knowledge Base용)
+resource "aws_iam_policy" "lambda_bedrock_agent_access" {
+  name        = "${var.project_name}-lambda-bedrock-agent-access"
+  description = "Bedrock Agent Runtime access policy for Lambda function"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:Retrieve",
+          "bedrock:RetrieveAndGenerate"
+        ]
+        Resource = [
+          "arn:aws:bedrock:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:knowledge-base/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:ListKnowledgeBases",
+          "bedrock:GetKnowledgeBase"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+# Bedrock 정책을 Lambda 역할에 연결
+resource "aws_iam_role_policy_attachment" "lambda_bedrock_access" {
+  role       = aws_iam_role.lambda_execution_role.name
+  policy_arn = aws_iam_policy.lambda_bedrock_access.arn
+}
+
+# Bedrock Agent 정책을 Lambda 역할에 연결
+resource "aws_iam_role_policy_attachment" "lambda_bedrock_agent_access" {
+  role       = aws_iam_role.lambda_execution_role.name
+  policy_arn = aws_iam_policy.lambda_bedrock_agent_access.arn
+}
