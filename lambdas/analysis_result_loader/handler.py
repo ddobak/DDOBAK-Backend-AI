@@ -127,13 +127,14 @@ def insert_toxic_clauses(connection, analysis_id, toxic_clauses):
         # 새로운 독소조항들을 삽입
         insert_query = """
             INSERT INTO toxic_clauses 
-            (id, analysis_id, clause, reason, reason_reference, 
+            (id, analysis_id, title, clause, reason, reason_reference, 
              source_contract_tag_idx, warn_level)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         for toxic in toxic_clauses:
             toxic_id = str(uuid.uuid4())
+            title = toxic.get('title', '')
             clause = toxic.get('clause', '')
             reason = toxic.get('reason', '')
             reason_reference = toxic.get('reasonReference', '')
@@ -141,7 +142,7 @@ def insert_toxic_clauses(connection, analysis_id, toxic_clauses):
             warn_level = toxic.get('warnLevel', 1)
             
             cursor.execute(insert_query, (
-                toxic_id, analysis_id, clause, reason, reason_reference,
+                toxic_id, analysis_id, title, clause, reason, reason_reference,
                 source_idx, warn_level
             ))
             
