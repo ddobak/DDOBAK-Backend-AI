@@ -3,6 +3,9 @@ import boto3
 import os
 from json_repair import repair_json
 
+# 지식 기반 ID 환경 변수 설정
+KNOWLEDGE_BASE_ID = os.getenv("KNOWLEDGE_BASE_ID")
+
 bedrock_runtime = boto3.client(service_name="bedrock-runtime", region_name="ap-northeast-2")
 
 
@@ -10,30 +13,32 @@ def extract_toxic_clauses(contract_id, analysis_id, contract_text):
     # prompt.txt 파일 읽기
     current_dir = os.path.dirname(os.path.abspath(__file__))
     prompt_file_path = os.path.join(current_dir, "prompt.txt")
-    
-    with open(prompt_file_path, 'r', encoding='utf-8') as f:
+
+    with open(prompt_file_path, "r", encoding="utf-8") as f:
         prompt_template = f.read()
-    
+
     # contract_text를 템플릿에 삽입
     prompt = prompt_template.replace("{{contract_document}}", contract_text)
 
     model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
-
-    body = json.dumps(
-        {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 4000,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.1,
-            "top_p": 0.9,
-        }
-    )
+    model_arn = f"arn:aws:bedrock:ap-northeast-2::foundation-model/{model_id}"
 
     try:
-        response = bedrock_runtime.invoke_model(body=body, modelId=model_id, accept="application/json", contentType="application/json")
-
-        response_body = json.loads(response.get("body").read())
-        answer = response_body["content"][0]["text"]
+        response = bedrock_runtime.retrieve_and_generate(
+            input={
+                "text": prompt,
+            },
+            retrieveAndGenerateConfiguration={
+                "type": "KNOWLEDGE_BASE",
+                "knowledgeBaseConfiguration": {
+                    "knowledgeBaseId": KNOWLEDGE_BASE_ID,
+                    "modelArn": model_arn,
+                },
+            },
+        )
+        # 응답 형태 참고: https://github.com/aws-samples/amazon-bedrock-knowledge-base-easiest-guide-with-lambda
+        # response["citations"]를 통해 검색된 문서에 접근 가능
+        answer = response["output"]["text"]
 
         try:
             # JSON 블록에서 JSON 추출
@@ -52,14 +57,11 @@ def extract_toxic_clauses(contract_id, analysis_id, contract_text):
             # 필수 필드 보완
             if not parsed_result.get("originContent"):
                 parsed_result["originContent"] = contract_text
-            
+
             if not parsed_result.get("title"):
                 parsed_result["title"] = "계약서"
 
-            return {"status": "success", "model_used": model_id, "data": {
-                "contractId": contract_id,
-                "analysisResult": parsed_result
-            }}
+            return {"status": "success", "model_used": model_id, "data": {"contractId": contract_id, "analysisResult": parsed_result}}
 
         except Exception as e:
             # JSON 파싱 실패 시 원본 응답 반환
@@ -105,42 +107,24 @@ def lambda_handler(event, context):
         analysis_id = event["analysisId"]
         contract_text = event["contractTexts"]
 
-        full_text = "\n---\n".join(
-            f"Page {idx + 1}:\n{text}" for idx, text in enumerate(contract_text)
-        )
+        full_text = "\n---\n".join(f"Page {idx + 1}:\n{text}" for idx, text in enumerate(contract_text))
 
         # 독소조항 추출 수행
         result = extract_toxic_clauses(contract_id, analysis_id, full_text)
 
-        response = {
-            "success": True,
-            "message": "",
-            "data": {
-                "contractId": contract_id,
-                "analysisId": analysis_id,
-                "analysisResult": result['data']
-            }
-        }
-        
+        response = {"success": True, "message": "", "data": {"contractId": contract_id, "analysisId": analysis_id, "analysisResult": result["data"]}}
+
         # 최종 반환값 로그 출력
         print(f"Lambda response: {json.dumps(response, ensure_ascii=False, indent=2)}")
-        
+
         return response
 
     except Exception as e:
         print(f"Error processing contract: {str(e)}")
-        
-        error_response = {
-            "success": False,
-            "message": str(e),
-            "data": {
-                "contractId": contract_id,
-                "analysisId": analysis_id,
-                "analysisResult": result['data']
-            }
-        }
-        
+
+        error_response = {"success": False, "message": str(e), "data": {"contractId": contract_id, "analysisId": analysis_id, "analysisResult": result["data"]}}
+
         # 에러 응답도 로그 출력
         print(f"Lambda error response: {json.dumps(error_response, ensure_ascii=False, indent=2)}")
-        
+
         return error_response
