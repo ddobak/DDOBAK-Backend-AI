@@ -13,6 +13,8 @@ You need to perform the following tasks when receiving contract documents proces
 
 <toxic_clause_criteria>
 <definition>
+IMPORTANT: You MUST identify as many toxic clauses as possible. Be thorough and comprehensive - it's better to flag potentially problematic clauses than to miss them. Examine every sentence carefully for any unfair advantage or disadvantage.
+
 Toxic clauses refer to clauses that fall under one or more of the following:
 - Unilaterally disadvantageous conditions (termination rights, responsibilities, etc.)
 - Excessive responsibility transfer or burden
