@@ -155,50 +155,55 @@ def insert_toxic_clauses(connection, analysis_id, toxic_clauses):
         cursor.close()
 
 def process_sqs_message(message_body):
-    """SQS 메시지를 처리합니다."""
+    """SQS 메시지를 처리함 (Lambda Destinations 형식만 지원).
+
+    기대 형식은 아래와 같다 !!!
+    {
+      "requestPayload": { "contractId": "...", "analysisId": "...", ... },
+      "responsePayload": {
+        "success": true,
+        "message": "",
+        "data": { "contractId": "...", "analysisId": "...", "analysisResult": { ... } }
+      }
+    }
+    """
     try:
-        # SQS 메시지는 Lambda destination에서 온 것이므로 특정 구조를 가집니다
         if isinstance(message_body, str):
             message_data = json.loads(message_body)
         else:
             message_data = message_body
-            
-        # Lambda destination에서 오는 메시지 구조 처리
-        if 'responsePayload' in message_data:
-            bedrock_response = message_data['responsePayload']
+
+        if 'responsePayload' not in message_data:
+            raise ValueError('Unsupported SQS message format: expected Lambda Destinations payload')
+
+        bedrock_response = message_data['responsePayload']
+
+        # contract/analysis id는 requestPayload에서 가져옴
+        contract_id = message_data.get('requestPayload', {}).get('contractId')
+        analysis_id = message_data.get('requestPayload', {}).get('analysisId')
+
+        # 응답 내 분석 결과 
+        data_block = bedrock_response.get('data', {})
+        analysis_result_data = data_block.get('analysisResult', {})
+        if isinstance(analysis_result_data, dict) and 'analysisResult' in analysis_result_data:
+            actual_analysis_result = analysis_result_data['analysisResult']
         else:
-            bedrock_response = message_data
-            
-        # bedrock_lambda의 새로운 응답 구조에서 데이터 추출
-        if 'data' in bedrock_response and 'contractId' in bedrock_response['data']:
-            # 새로운 형식: { "data": { "contractId": "...", "analysisId": "...", "analysisResult": {...} } }
-            contract_id = bedrock_response['data']['contractId']
-            analysis_id = bedrock_response['data']['analysisId']
-            
-            # analysisResult 구조 확인
-            analysis_result_data = bedrock_response['data']['analysisResult']
-            
-            # analysisResult 안에 다시 analysisResult가 중첩된 경우 처리
-            if isinstance(analysis_result_data, dict) and 'analysisResult' in analysis_result_data:
-                # 중첩된 구조: analysisResult.analysisResult에 실제 데이터가 있는 경우
-                actual_analysis_result = analysis_result_data['analysisResult']
-                # bedrock_response 전체 구조를 유지하되, 실제 분석 결과로 교체
-                analysis_result = {
-                    'success': bedrock_response.get('success', True),
-                    'message': bedrock_response.get('message', ''),
-                    'data': actual_analysis_result
-                }
-            else:
-                # 정상적인 구조인 경우
-                analysis_result = bedrock_response
-        else:
-            # 이전 형식 또는 다른 형식 처리 (호환성 유지)
-            contract_id = message_data.get('requestPayload', {}).get('contractId', 'unknown')
-            analysis_id = message_data.get('requestPayload', {}).get('analysisId', 'unknown')
-            analysis_result = bedrock_response
-        
+            actual_analysis_result = analysis_result_data
+
+        analysis_result = {
+            'success': bedrock_response.get('success', True),
+            'message': bedrock_response.get('message', ''),
+            'data': actual_analysis_result
+        }
+
+        # requestPayload가 비어있을 때
+        if not contract_id:
+            contract_id = data_block.get('contractId', 'unknown')
+        if not analysis_id:
+            analysis_id = data_block.get('analysisId', 'unknown')
+
         return analysis_result, contract_id, analysis_id
-        
+
     except Exception as e:
         print(f"Error processing SQS message: {str(e)}")
         raise e
