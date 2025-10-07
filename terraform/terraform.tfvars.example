@@ -16,8 +16,6 @@ lambda_function_name = "ddobak-ocr-function"
 lambda_memory_size   = 1024
 lambda_timeout       = 30
 
-# CORS 설정 (Lambda Function URL)
-lambda_cors_allow_origins = ["*"]
 
 # 추가 Lambda 함수들 (새로운 함수 추가시 아래 주석 해제하고 수정)
 additional_lambdas = {

@@ -430,8 +430,6 @@ re_init() {
     timeout: 30
     environment_variables:
       LOG_LEVEL: INFO
-    cors_origins:
-      - "*"
     description: "Lambda function: $lambda_name"
 EOF
                 log_success "✓ $lambda_name 설정을 통합 파일에 추가"

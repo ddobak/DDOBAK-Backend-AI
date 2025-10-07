@@ -8,10 +8,6 @@ output "lambda_function_arn" {
   value       = aws_lambda_function.lambda_function.arn
 }
 
-output "lambda_function_url" {
-  description = "URL of the Lambda function"
-  value       = aws_lambda_function_url.lambda_function_url.function_url
-}
 
 output "ecr_repository_url" {
   description = "URL of the ECR repository"

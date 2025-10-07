@@ -101,26 +101,3 @@ resource "aws_lambda_function" "lambda_function" {
   }
 }
 
-# Lambda Function URL
-resource "aws_lambda_function_url" "lambda_function_url" {
-  function_name      = aws_lambda_function.lambda_function.function_name
-  authorization_type = "NONE"  # 인증 없이 공개 접근
-
-  cors {
-    allow_credentials = false
-    allow_origins     = var.cors_allow_origins
-    allow_methods     = ["*"]
-    allow_headers     = ["*"]
-    expose_headers    = ["date", "keep-alive"]
-    max_age          = 86400
-  }
-}
-
-# Lambda 함수 권한 (Function URL을 통한 호출 허용)
-resource "aws_lambda_permission" "allow_function_url" {
-  statement_id           = "AllowFunctionURL"
-  action                = "lambda:InvokeFunctionUrl"
-  function_name         = aws_lambda_function.lambda_function.function_name
-  principal             = "*"
-  function_url_auth_type = "NONE"
-} 
