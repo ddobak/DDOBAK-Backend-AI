@@ -25,8 +25,6 @@ module "lambdas" {
   # 환경 변수
   environment_variables = try(each.value.environment_variables, {})
   
-  # CORS 설정
-  cors_allow_origins = try(each.value.cors_origins, ["*"])
   
   # 공통 설정
   environment = var.environment

@@ -31,11 +31,6 @@ variable "environment_variables" {
   default     = {}
 }
 
-variable "cors_allow_origins" {
-  description = "Allowed origins for Lambda Function URL CORS"
-  type        = list(string)
-  default     = ["*"]
-}
 
 variable "environment" {
   description = "Environment name"

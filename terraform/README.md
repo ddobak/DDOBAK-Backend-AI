@@ -11,8 +11,6 @@
 
 ### Lambda 함수
 - **Lambda 함수**: 컨테이너 기반 서버리스 함수
-- **Function URL**: HTTP(S) 엔드포인트로 직접 호출 가능
-- **CORS 설정**: 웹 브라우저에서 직접 호출 가능
 
 ### IAM 권한
 - **Lambda 실행 역할**: 필요한 최소 권한
@@ -63,7 +61,6 @@ terraform output
 ## 📋 주요 출력 정보
 
 - **ecr_repository_url**: ECR 리포지토리 URL
-- **lambda_function_url**: Lambda Function URL (HTTP 엔드포인트)
 - **lambda_function_name**: Lambda 함수 이름
 - **aws_account_id**: AWS 계정 ID
 
@@ -85,23 +82,6 @@ lambda_function_name = "your-lambda-function"
 lambda_memory_size   = 1024
 lambda_timeout       = 30
 
-# CORS 설정
-lambda_cors_allow_origins = ["https://yourdomain.com"]
-```
-
-## 🌐 Lambda Function URL 사용법
-
-배포 완료 후 출력되는 Function URL을 사용하여 Lambda 함수를 직접 호출할 수 있습니다:
-
-```bash
-# GET 요청
-curl https://your-function-url.lambda-url.ap-northeast-2.on.aws/
-
-# POST 요청
-curl -X POST https://your-function-url.lambda-url.ap-northeast-2.on.aws/ \
-  -H "Content-Type: application/json" \
-  -d '{"test": "sample event"}'
-```
 
 ## 🧹 정리
 
@@ -142,10 +122,8 @@ aws lambda update-function-code \
 
 ## 🔒 보안 고려사항
 
-1. **Function URL 인증**: 현재 인증 없이 공개 접근으로 설정됨
-2. **CORS 설정**: 필요에 따라 허용 오리진을 제한
-3. **IAM 권한**: 최소 권한 원칙 적용
-4. **VPC**: 필요시 Lambda를 VPC 내부에 배치 가능
+1. **IAM 권한**: 최소 권한 원칙 적용
+2. **VPC**: 필요시 Lambda를 VPC 내부에 배치 가능
 
 ## 🏷️ 태그 관리
 

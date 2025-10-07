@@ -34,39 +34,4 @@ lambdas:
     cors_origins:
       - "*"
     description: "Analysis result loader Lambda function for text extraction"
-  
-  test_lambda:
-    name: test_lambda
-    function_name: test_lambda
-    ecr_repository: test_lambda
-    memory_size: 512
-    timeout: 60
-    environment_variables:
-      LOG_LEVEL: INFO
-    cors_origins:
-      - "*"
-    description: "Test Lambda function for development"
 
-  test_ocr:
-    name: test_ocr
-    function_name: test_ocr
-    ecr_repository: test_ocr
-    memory_size: 512
-    timeout: 60
-    environment_variables:
-      LOG_LEVEL: INFO
-    cors_origins:
-      - "*"
-    description: "Test OCR Lambda function for development"
-
-  test_bedrock:
-    name: test_bedrock
-    function_name: test_bedrock
-    ecr_repository: test_bedrock
-    memory_size: 512
-    timeout: 60
-    environment_variables:
-      LOG_LEVEL: INFO
-    cors_origins:
-      - "*"
-    description: "Test Lambda function for development"

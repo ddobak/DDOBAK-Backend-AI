@@ -22,7 +22,6 @@ output "lambda_functions" {
     for name, lambda_module in module.lambdas : name => {
       function_name       = lambda_module.lambda_function_name
       function_arn        = lambda_module.lambda_function_arn
-      function_url        = lambda_module.lambda_function_url
       ecr_repository_url  = lambda_module.ecr_repository_url
       ecr_repository_name = lambda_module.ecr_repository_name
       log_group_name      = lambda_module.cloudwatch_log_group_name
@@ -39,7 +38,6 @@ output "deployment_info" {
     lambda_functions = {
       for name, lambda_module in module.lambdas : name => {
         function_name      = lambda_module.lambda_function_name
-        function_url       = lambda_module.lambda_function_url
         ecr_repository_url = lambda_module.ecr_repository_url
       }
     }
