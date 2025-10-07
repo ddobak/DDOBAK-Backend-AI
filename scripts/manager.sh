@@ -163,7 +163,9 @@ print(config['lambdas']['$lambda_name']['ecr_repository'])
 ")
     
     local ecr_uri="${account_id}.dkr.ecr.${region}.amazonaws.com"
-    local image_tag="${ecr_uri}/${ecr_repository}:latest"
+    local image_repo="${ecr_uri}/${ecr_repository}"
+    local timestamp_tag
+    timestamp_tag=$(date -u +%Y%m%d%H%M%S)
     
     # uv에서 requirements.txt 생성
     log_info "requirements.txt 파일 생성 중..."
@@ -178,10 +180,14 @@ print(config['lambdas']['$lambda_name']['ecr_repository'])
     log_info "Docker 이미지 빌드 중: $lambda_name"
     # Legacy Docker builder 사용 (Lambda 호환성을 위해 단일 플랫폼 이미지 생성)
     export DOCKER_BUILDKIT=0
-    if docker build --platform linux/amd64 -t "$image_tag" -f "$lambda_dir/Dockerfile" "$PROJECT_ROOT"; then
-        log_info "Docker 이미지 푸시 중: $ecr_repository"
-        docker push "$image_tag"
-        log_success "Docker 이미지 빌드 및 푸시 완료: $lambda_name"
+    if docker build --platform linux/amd64 -t "${image_repo}:${timestamp_tag}" -f "$lambda_dir/Dockerfile" "$PROJECT_ROOT"; then
+        # latest 태그도 함께 유지
+        docker tag "${image_repo}:${timestamp_tag}" "${image_repo}:latest"
+        log_info "Docker 이미지 푸시 중: ${ecr_repository}:${timestamp_tag} 및 latest"
+        docker push "${image_repo}:${timestamp_tag}"
+        docker push "${image_repo}:latest"
+        export LAST_IMAGE_TAG="$timestamp_tag"
+        log_success "Docker 이미지 빌드 및 푸시 완료: $lambda_name (tag=${timestamp_tag})"
     else
         log_error "Docker 이미지 빌드 실패: $lambda_name"
         return 1
@@ -220,7 +226,13 @@ with open(config_file, 'r') as f:
 print(config['lambdas']['$lambda_name']['ecr_repository'])
 ")
     
-    local image_uri="${account_id}.dkr.ecr.${region}.amazonaws.com/${ecr_repository}:latest"
+    local timestamp_tag="${LAST_IMAGE_TAG:-}"
+    local image_uri
+    if [ -n "$timestamp_tag" ]; then
+        image_uri="${account_id}.dkr.ecr.${region}.amazonaws.com/${ecr_repository}:${timestamp_tag}"
+    else
+        image_uri="${account_id}.dkr.ecr.${region}.amazonaws.com/${ecr_repository}:latest"
+    fi
     
     log_info "Lambda 함수 '$function_name' 코드 업데이트 중..."
     aws lambda update-function-code \
