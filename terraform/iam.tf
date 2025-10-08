@@ -71,6 +71,44 @@ resource "aws_iam_role_policy_attachment" "lambda_s3_access" {
   policy_arn = aws_iam_policy.lambda_s3_access.arn
 }
 
+# SQS Consume/Send 권한 (Destination 전송 및 Consumer 동작)
+resource "aws_iam_policy" "lambda_sqs_access" {
+  name        = "${var.project_name}-lambda-sqs-access"
+  description = "SQS access policy for Lambda function"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl"
+        ]
+        Resource = [aws_sqs_queue.analysis_results.arn, aws_sqs_queue.analysis_results_dlq.arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:ChangeMessageVisibility",
+          "sqs:GetQueueAttributes"
+        ]
+        Resource = [aws_sqs_queue.analysis_results.arn]
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_sqs_access_attach" {
+  role       = aws_iam_role.lambda_execution_role.name
+  policy_arn = aws_iam_policy.lambda_sqs_access.arn
+}
+
 # Bedrock 접근 권한 (Claude 모델 호출용)
 resource "aws_iam_policy" "lambda_bedrock_access" {
   name        = "${var.project_name}-lambda-bedrock-access"
