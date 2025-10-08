@@ -6,6 +6,9 @@ resource "aws_lambda_event_invoke_config" "bedrock_success_to_sqs" {
     on_success {
       destination = aws_sqs_queue.analysis_results.arn
     }
+    on_failure {
+      destination = aws_sqs_queue.analysis_results_dlq.arn
+    }
   }
 
   maximum_retry_attempts = 0

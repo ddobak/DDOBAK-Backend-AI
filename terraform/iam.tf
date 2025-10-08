@@ -86,9 +86,7 @@ resource "aws_iam_policy" "lambda_sqs_access" {
           "sqs:GetQueueAttributes",
           "sqs:GetQueueUrl"
         ]
-        Resource = [
-          aws_sqs_queue.analysis_results.arn
-        ]
+        Resource = [aws_sqs_queue.analysis_results.arn, aws_sqs_queue.analysis_results_dlq.arn]
       },
       {
         Effect = "Allow"
@@ -98,9 +96,7 @@ resource "aws_iam_policy" "lambda_sqs_access" {
           "sqs:ChangeMessageVisibility",
           "sqs:GetQueueAttributes"
         ]
-        Resource = [
-          aws_sqs_queue.analysis_results.arn
-        ]
+        Resource = [aws_sqs_queue.analysis_results.arn]
       }
     ]
   })
