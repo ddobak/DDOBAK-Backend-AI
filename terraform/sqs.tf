@@ -7,7 +7,7 @@ resource "aws_sqs_queue" "analysis_results_dlq" {
   tags = local.common_tags
 }
 
-# 성공 큐: analysis_results
+# 메인 큐: analysis_results
 # redrive policy로 5번 이상 실패 시 DLQ로 전송
 resource "aws_sqs_queue" "analysis_results" {
   name                      = "${var.project_name}-${var.environment}-analysis-results"
