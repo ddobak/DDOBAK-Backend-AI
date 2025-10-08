@@ -1,5 +1,5 @@
 # bedrock_lambda 성공 시 SQS로 결과를 전송 (Lambda Destinations)
-resource "aws_lambda_event_invoke_config" "bedrock_success_to_sqs" {
+resource "aws_lambda_function_event_invoke_config" "bedrock_success_to_sqs" {
   function_name = module.lambdas["bedrock_lambda"].lambda_function_name
 
   destination_config {
