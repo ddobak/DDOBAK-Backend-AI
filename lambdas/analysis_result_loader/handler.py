@@ -50,7 +50,7 @@ def update_contract_analysis(connection, analysis_data, contract_id, analysis_id
     try:
         # 기존 레코드를 UPDATE (INSERT 대신)
         update_query = """
-            UPDATE contract_analyses 
+            UPDATE prod.contract_analyses 
             SET summary = %s, 
                 status = %s, 
                 ddobak_overall_comment = %s, 
@@ -89,7 +89,7 @@ def update_contract_title(connection, contract_id, title):
     try:
         # contracts 테이블의 title 업데이트
         update_query = """
-            UPDATE contracts 
+            UPDATE prod.contracts 
             SET title = %s, 
                 updated_at = %s
             WHERE id = %s
@@ -117,7 +117,7 @@ def insert_toxic_clauses(connection, analysis_id, toxic_clauses):
     
     try:
         # 먼저 기존 독소조항들을 삭제
-        delete_query = "DELETE FROM toxic_clauses WHERE analysis_id = %s"
+        delete_query = "DELETE FROM prod.toxic_clauses WHERE analysis_id = %s"
         cursor.execute(delete_query, (analysis_id,))
         
         if not toxic_clauses:
@@ -126,7 +126,7 @@ def insert_toxic_clauses(connection, analysis_id, toxic_clauses):
         
         # 새로운 독소조항들을 삽입
         insert_query = """
-            INSERT INTO toxic_clauses 
+            INSERT INTO prod.toxic_clauses 
             (id, analysis_id, title, clause, reason, reason_reference, 
              source_contract_tag_idx, warn_level)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
