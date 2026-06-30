@@ -1,8 +1,12 @@
 import json
 import boto3
 import os
+from botocore.exceptions import ClientError
 from json_repair import repair_json
 from dotenv import load_dotenv
+
+# prompt.txt 안에서 계약서 본문이 치환되는 자리표시자
+PROMPT_PLACEHOLDER = "{{contract_document}}"
 
 # 지식 기반 ID 환경 변수 설정
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
@@ -68,50 +72,80 @@ def retrieve_knowledge_base(query, model_id):
         return None
 
 
-def invoke_with_context(prompt, knowledge_context, model_id, source_type):
-    """컨텍스트를 포함하여 모델에 요청하는 함수"""
+def _build_request_body(static_prefix, volatile_text, use_cache):
+    """Bedrock InvokeModel body 생성.
+
+    use_cache=True 이면 정적 프리픽스(prompt.txt 지시문)를 별도 content 블록으로
+    분리하고 cache_control 을 붙여 프롬프트 캐싱을 적용한다. 정적 프리픽스는 매
+    요청마다 바이트 단위로 동일하므로 2회차부터 cache_read(약 0.1배 단가)로 처리된다.
+    """
+    base = {"anthropic_version": "bedrock-2023-05-31", "max_tokens": 4000}
+    if use_cache:
+        base["messages"] = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": static_prefix,
+                        "cache_control": {"type": "ephemeral"},
+                    },
+                    {"type": "text", "text": volatile_text},
+                ],
+            }
+        ]
+    else:
+        # 캐싱 미지원 모델용 폴백 — 기존과 동일한 단일 문자열 user 메시지
+        base["messages"] = [{"role": "user", "content": static_prefix + volatile_text}]
+    return base
+
+
+def invoke_with_context(static_prefix, volatile_text, model_id, source_type):
+    """정적 지시문(캐시) + 가변 컨텍스트(계약서/판례)를 모델에 요청하는 함수"""
+    print(f"[INVOKE] 모델 요청 시작 - 소스: {source_type}, Model: {model_id}")
+
     try:
-        print(f"[INVOKE] 모델 요청 시작 - 소스: {source_type}, Model: {model_id}")
-        
-        # 지식 기반 검색 결과가 있으면 프롬프트에 포함
-        if knowledge_context:
-            enhanced_prompt = f"""다음은 관련 법률 및 판례 정보입니다. 이 정보를 참고하여 계약서를 분석해주세요:
+        # 1) 프롬프트 캐싱 적용 요청
+        body = _build_request_body(static_prefix, volatile_text, use_cache=True)
+        try:
+            response = bedrock_runtime.invoke_model(
+                modelId=model_id,
+                body=json.dumps(body, ensure_ascii=False),
+            )
+        except ClientError as e:
+            # 모델이 prompt caching 을 지원하지 않으면 cache_control 필드에서
+            # ValidationException 이 날 수 있다. 이 경우 캐시 없이 폴백하여
+            # 운영 흐름이 깨지지 않도록 한다.
+            err_code = e.response.get("Error", {}).get("Code", "")
+            err_msg = str(e)
+            if "cache" in err_msg.lower() or err_code == "ValidationException":
+                print(f"[INVOKE] 프롬프트 캐싱 미지원 추정 → 캐시 없이 재시도: {err_msg}")
+                body = _build_request_body(static_prefix, volatile_text, use_cache=False)
+                response = bedrock_runtime.invoke_model(
+                    modelId=model_id,
+                    body=json.dumps(body, ensure_ascii=False),
+                )
+            else:
+                raise
 
-{knowledge_context}
-
----
-
-{prompt}"""
-            print(f"[INVOKE] 지식 기반 컨텍스트 포함하여 요청")
-        else:
-            enhanced_prompt = prompt
-            print(f"[INVOKE] 일반 지식으로 요청")
-        
-        # 일반 InvokeModel API 사용
-        body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 4000,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": enhanced_prompt
-                }
-            ]
-        }
-        
-        response = bedrock_runtime.invoke_model(
-            modelId=model_id,
-            body=json.dumps(body, ensure_ascii=False)
-        )
-        
         # 응답 파싱
         response_body = json.loads(response['body'].read())
-        
+
+        # 캐시 적중 확인용 usage 로깅 (CloudWatch 에서 cache_read 토큰으로 검증)
+        usage = response_body.get("usage", {})
+        print(
+            "[INVOKE] usage - "
+            f"input={usage.get('input_tokens')}, "
+            f"cache_write={usage.get('cache_creation_input_tokens')}, "
+            f"cache_read={usage.get('cache_read_input_tokens')}, "
+            f"output={usage.get('output_tokens')}"
+        )
+
         # 전체 응답 로깅
         print(f"[INVOKE] Bedrock 응답 전문: {json.dumps(response_body, ensure_ascii=False, indent=2)}")
-        
+
         answer = response_body["content"][0]["text"]
-        
+
         print(f"[INVOKE] 성공적으로 응답을 생성했습니다 - 소스: {source_type}")
         return {
             "success": True,
@@ -119,7 +153,7 @@ def invoke_with_context(prompt, knowledge_context, model_id, source_type):
             "response": response_body,
             "answer": answer
         }
-        
+
     except Exception as e:
         print(f"[INVOKE] 모델 요청 오류: {str(e)}")
         print(f"[INVOKE] 오류 유형: {type(e).__name__}")
@@ -135,26 +169,38 @@ def extract_toxic_clauses(contract_id, analysis_id, contract_text):
     with open(prompt_file_path, "r", encoding="utf-8") as f:
         prompt_template = f.read()
 
-    # contract_text를 템플릿에 삽입
-    prompt = prompt_template.replace("{{contract_document}}", contract_text)
+    # prompt.txt 를 정적 프리픽스(지시문)와 자리표시자 이후 접미부로 분리.
+    # 정적 프리픽스는 매 요청마다 동일하므로 프롬프트 캐싱 대상이 된다.
+    static_prefix, _, suffix = prompt_template.partition(PROMPT_PLACEHOLDER)
+
+    # 검색 쿼리는 기존과 동일하게 계약서가 삽입된 전체 프롬프트를 사용 (검색 결과 불변)
+    full_prompt = static_prefix + contract_text + suffix
 
     model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 
     print(f"[MAIN] 계약서 분석 시작 - Contract ID: {contract_id}, Analysis ID: {analysis_id}")
-    
+
     # 1단계: 지식 기반에서 관련 문서 검색
-    knowledge_result = retrieve_knowledge_base(prompt, model_id)
-    
+    knowledge_result = retrieve_knowledge_base(full_prompt, model_id)
+
+    # 가변 영역: 계약서 본문 + (있으면) 관련 판례.
+    # 캐시 프리픽스가 깨지지 않도록 반드시 정적 프리픽스 "뒤"에 위치시킨다.
+    volatile_text = contract_text + suffix
+
     if knowledge_result is not None:
         # 지식 기반 검색 성공 - 컨텍스트 포함하여 요청
         print(f"[MAIN] 지식 기반 검색 성공 - 참고 문서 {knowledge_result['count']}개")
-        invoke_result = invoke_with_context(prompt, knowledge_result["context"], model_id, "knowledge_base")
+        volatile_text += (
+            "\n\n다음은 관련 법률 및 판례 정보입니다. 위 계약서를 분석할 때 참고하세요:\n\n"
+            + knowledge_result["context"]
+        )
+        invoke_result = invoke_with_context(static_prefix, volatile_text, model_id, "knowledge_base")
         source_type = "knowledge_base"
         citations_count = knowledge_result["count"]
     else:
         # 지식 기반 검색 실패 - 일반 지식으로 요청
         print(f"[MAIN] 지식 기반 검색 실패 - 일반 지식으로 요청")
-        invoke_result = invoke_with_context(prompt, None, model_id, "general_request")
+        invoke_result = invoke_with_context(static_prefix, volatile_text, model_id, "general_request")
         source_type = "general_request"
         citations_count = 0
 
